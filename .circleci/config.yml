@@ -21,7 +21,7 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get update && sudo apt-get install -y jq
-      - run: bash influxdb/circle-test.sh
+      - run: bash influxdb/test/test-2x-e2e.sh
       - store_artifacts:
           path: influxdb/test-logs
           destination: container-logs
