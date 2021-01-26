@@ -138,6 +138,9 @@ function upgrade_influxd () {
     if [ -n "$INFLUXDB_INIT_RETENTION" ]; then
         set -- ${@} --retention ${INFLUXDB_INIT_RETENTION}
     fi
+    if [ -n "$INFLUXDB_INIT_ADMIN_TOKEN" ]; then
+        set -- ${@} --token ${INFLUXDB_INIT_ADMIN_TOKEN}
+    fi
 
     if [[ -n "$INFLUXDB_INIT_UPGRADE_V1_CONFIG" && -f ${INFLUXDB_INIT_UPGRADE_V1_CONFIG} ]]; then
         set -- ${@} --config-file ${INFLUXDB_INIT_UPGRADE_V1_CONFIG}
@@ -189,6 +192,9 @@ function setup_influxd () {
 
     if [ -n "$INFLUXDB_INIT_RETENTION" ]; then
         set -- ${@} --retention ${INFLUXDB_INIT_RETENTION}
+    fi
+    if [ -n "$INFLUXDB_INIT_ADMIN_TOKEN" ]; then
+        set -- ${@} --token ${INFLUXDB_INIT_ADMIN_TOKEN}
     fi
 
     influx setup ${@}

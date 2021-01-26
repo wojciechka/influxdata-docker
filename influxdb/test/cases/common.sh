@@ -5,6 +5,7 @@ declare -r TEST_PASSWORD=password
 declare -r TEST_ORG=org
 declare -r TEST_BUCKET=bucket
 declare -r TEST_RETENTION_SECONDS=604800
+declare -r TEST_ADMIN_TOKEN=supersecrettoken12345
 
 declare -r TEST_V1_DB=telegraf
 declare -r TEST_V1_RP=autogen
