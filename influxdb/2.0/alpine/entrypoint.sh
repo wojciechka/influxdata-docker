@@ -194,11 +194,6 @@ function setup_influxd () {
     influx setup ${@}
 }
 
-# Configure the INFLUX_HOST env var so the influx CLI knows how to reach the server for initial setup.
-function set_influx_host () {
-    export INFLUX_HOST="$(influxd print-config --key-name http-bind-address ${@} | sed -E 's#[^:]*:(.*)#http://localhost:\1#g')"
-}
-
 # Get the IDs of the initial user/org/bucket created during setup, and export them into the env.
 # We do this to help with arbitrary user scripts, since many influx CLI commands only take IDs.
 function set_init_resource_ids () {
@@ -219,26 +214,6 @@ function run_user_scripts () {
     fi
 }
 
-# When we run setup logic, we boot influxd in the background instead of `exec`-ing it.
-# By default this prevents signals from reaching the server, so we register traps to
-# pass through the signals that matter.
-# The PID of the influxd process is tracked globally so the trap handlers can send it signals.
-INFLUXD_PID=""
-
-function handle_term () {
-    if [ -n "$INFLUXD_PID" ]; then
-        kill -TERM ${INFLUXD_PID}
-        wait ${INFLUXD_PID}
-    fi
-}
-
-function handle_int () {
-    if [ -n "$INFLUXD_PID" ]; then
-        kill -INT ${INFLUXD_PID}
-        wait ${INFLUXD_PID}
-    fi
-}
-
 # Perform initial setup on the InfluxDB instance, either by setting up fresh metadata
 # or by upgrading existing V1 data.
 function init_influxd () {
@@ -255,14 +230,21 @@ function init_influxd () {
         upgrade_influxd
     fi
 
+    # Generate a config file with a known HTTP port
+    local init_config=/tmp/config.yml
+    local final_bind_addr=$(influxd print-config --key-name http-bind-address ${@})
+    local init_bind_addr=":${INFLUXD_INIT_PORT}"
+    if [ ${init_bind_addr} = ${final_bind_addr} ]; then
+      log warn "influxd setup binding to same addr as final config, server will be exposed before ready" addr ${init_bind_addr}
+    fi
+    influxd print-config ${@} | sed "s#${final_bind_addr}#${init_bind_addr}#" > ${init_config}
+
     # Start influxd in the background.
     log info "booting influxd server in the background"
-    trap handle_term TERM
-    trap handle_int INT
-    influxd ${@} &
-    INFLUXD_PID="$!"
+    INFLUXD_CONFIG_PATH=${init_config} influxd ${@} &
+    local influxd_init_pid="$!"
 
-    set_influx_host ${@}
+    export INFLUX_HOST="http://localhost:${INFLUXD_INIT_PORT}"
     wait_for_influxd
 
     # Use the influx CLI to create an initial user/org/bucket.
@@ -273,22 +255,27 @@ function init_influxd () {
     set_init_resource_ids
     run_user_scripts
 
-    log info "initialization complete, bringing influxd to foreground"
+    log info "initialization complete, shutting down background influxd"
+    kill -TERM ${influxd_init_pid}
+    wait ${influxd_init_pid} || true
     trap - EXIT
-    wait ${influxd_pid}
+
+    # Rewrite the ClI configs to point at the server's final HTTP address.
+    local final_port=$(echo ${final_bind_addr} | sed -E 's#[^:]*:(.*)#\1#')
+    sed -i "s#http://localhost:${INFLUXD_INIT_PORT}#http://localhost:${final_port}#g" ${INFLUX_CONFIGS_PATH}
 }
 
 # Run influxd, with optional setup logic.
 function influxd_main () {
     if test -f ${BOLT_PATH}; then
-        log info "found existing boltdb file, skipping setup wrapper" bolt_path ${bolt_path}
-        exec influxd ${@}
+        log info "found existing boltdb file, skipping setup wrapper" bolt_path ${BOLT_PATH}
     elif [ -z "$INFLUXDB_INIT_MODE" ]; then
         log warn "boltdb not found at configured path, but INFLUXDB_INIT_MODE not specified, skipping setup wrapper" bolt_path ${bolt_path}
-        exec influxd ${@}
     else
         init_influxd ${@}
     fi
+
+    exec influxd ${@}
 }
 
 function main () {
