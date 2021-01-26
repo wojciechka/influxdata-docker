@@ -104,7 +104,7 @@ func ReadImageManifest(fpath string) (*ImageManifest, error) {
 	return &manifest, nil
 }
 
-func (m *ImageManifest) Write(w io.Writer, header *Header) error {
+func (m *ImageManifest) Write(w io.Writer, header *Header, getFullVersion func(dir string) (*Version, error)) error {
 	// Output the initial header passed in to write.
 	if header != nil {
 		header.Write(w)
@@ -116,7 +116,7 @@ func (m *ImageManifest) Write(w io.Writer, header *Header) error {
 			dir := filepath.Join(m.BaseDir, v.String())
 
 			header := &Header{}
-			version, err := DockerfileVersion(dir)
+			version, err := getFullVersion(dir)
 			if err != nil {
 				return err
 			}
@@ -157,7 +157,8 @@ func (m *ImageManifest) Write(w io.Writer, header *Header) error {
 				}
 
 				header := &Header{}
-				version, err := DockerfileVersion(dir)
+				vardir := filepath.Join(dir, variant.Name)
+				version, err := getFullVersion(vardir)
 				if err != nil {
 					return err
 				}
@@ -176,7 +177,7 @@ func (m *ImageManifest) Write(w io.Writer, header *Header) error {
 				for _, arch := range variant.Architectures {
 					header.Add("Architectures", arch)
 				}
-				header.Add("Directory", filepath.Join(dir, variant.Name))
+				header.Add("Directory", vardir)
 				//header.Add("Tags", variant.Name)
 				fmt.Fprintln(w)
 				if err := header.Write(w); err != nil {

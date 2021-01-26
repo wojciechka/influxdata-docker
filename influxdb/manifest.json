@@ -13,21 +13,11 @@
         "arm64v8"
       ],
       "variants": [
-        {
-          "name": "alpine"
-        },
-        {
-          "name": "data"
-        },
-        {
-          "name": "data/alpine"
-        },
-        {
-          "name": "meta"
-        },
-        {
-          "name": "meta/alpine"
-        }
+        { "name": "alpine" },
+        { "name": "data" },
+        { "name": "data/alpine" },
+        { "name": "meta" },
+        { "name": "meta/alpine" }
       ]
     },
     {
@@ -38,9 +28,7 @@
         "arm64v8"
       ],
       "variants": [
-        {
-          "name": "alpine"
-        }
+        { "name": "alpine" }
       ]
     }
   ]
