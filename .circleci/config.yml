@@ -1,3 +1,4 @@
+---
 version: 2.1
 
 workflows:
@@ -9,6 +10,10 @@ workflows:
           matrix:
             parameters:
               version: ["2.0", "2.1"]
+      - test-influxdb-binaries:
+          matrix:
+            parameters:
+              product: [ "influxdb/1.9/data", "influxdb/1.9/meta" ]
 
 jobs:
   build:
@@ -27,8 +32,21 @@ jobs:
         enum: ["2.0", "2.1"]
     steps:
       - checkout
-      - run: sudo apt-get update && sudo apt-get install -y jq
+      - run: |
+          sudo apt-get update &&
+          sudo apt-get install -y jq
       - run: bash influxdb/test/test-2x-e2e.sh << parameters.version >>
       - store_artifacts:
           path: influxdb/test/logs
           destination: container-logs
+
+  test-influxdb-binaries:
+    machine: true
+    parameters:
+      product:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Validate Docker Image Binaries
+          command: influxdb/test/test-binaries << parameters.product >>
